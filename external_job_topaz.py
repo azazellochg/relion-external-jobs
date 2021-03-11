@@ -1,4 +1,29 @@
 #!/usr/bin/env python3
+# **************************************************************************
+# *
+# * Authors:     Grigory Sharov (gsharov@mrc-lmb.cam.ac.uk) [1]
+# *
+# * [1] MRC Laboratory of Molecular Biology, MRC-LMB
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 3 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'gsharov@mrc-lmb.cam.ac.uk'
+# *
+# **************************************************************************
 
 """ Based on https://github.com/DiamondLightSource/python-relion-yolo-it by
 Sjors H.W. Scheres, Takanori Nakane, Colin M. Palmer, Donovan Webb"""
@@ -46,7 +71,7 @@ def run_job(project_dir, args):
     mictable = Table(fileName=getPath(in_mics), tableName='micrographs')
 
     # calculate downscale factor, resnet8 window is 71px
-    scale = (2 * diam / angpix / 71)
+    scale = int(2 * diam / angpix / 71)
     print("Using downscale factor %d for %d A particle" % (scale, diam))
 
     # Arranging files for topaz: making symlinks for mics
@@ -87,29 +112,25 @@ def run_job(project_dir, args):
         open(RELION_JOB_SUCCESS_FILENAME, "w").close()
         exit(0)
 
-    # Launching topaz preprocess
-    args_dict = {
+    os.makedirs("output", exist_ok=True)
+    cmd = CONDA_ENV
+
+    # Topaz preprocess
+    args_prep_dict = {
         '--scale': scale,
         '--destdir': 'preprocessed',
         '--num-workers': workers,
         '--num-threads': threads
     }
-    cmd = "%s && %s " % (CONDA_ENV, TOPAZ_PREPROCESS)
-    cmd += " ".join(['%s %s' % (k, v) for k, v in args_dict.items()])
+    cmd_prep = "%s " % TOPAZ_PREPROCESS
+    cmd_prep += " ".join(['%s %s' % (k, v) for k, v in args_prep_dict.items()])
     for i in mic_dirs:
         if len(glob("%s/*%s" % (i, mic_ext))):  # skip folders with no mics
-            cmd += " %s/*%s" % (i, mic_ext)
+            cmd_prep += " %s/*%s" % (i, mic_ext)
 
-    print("Running command:\n{}".format(cmd))
-    proc = subprocess.Popen(cmd, shell=True)
-    proc.communicate()
-
-    if proc.returncode:
-        raise Exception("Command failed with return code %d" % proc.returncode)
-
-    # Launching topaz extract
-    args_dict = {
-        '--radius': int(diam / (2 * angpix * scale),
+    # Topaz extract
+    args_extr_dict = {
+        '--radius': int(diam / (2 * angpix * scale)),
         '--up-scale': scale,
         '--threshold': thresh,
         '--output': 'output/coords.txt',
@@ -119,15 +140,26 @@ def run_job(project_dir, args):
     }
 
     if model != "None":
-        args_dict.update({'--model': model})
+        args_extr_dict.update({'--model': model})
 
-    cmd = "%s && %s " % (CONDA_ENV, TOPAZ_EXTRACT)
-    cmd += " ".join(['%s %s' % (k, v) for k, v in args_dict.items()])
-    cmd += " preprocessed/*.mrc"
-    os.makedirs("output", exist_ok=True)
+    cmd_extr = "%s " % TOPAZ_EXTRACT
+    cmd_extr += " ".join(['%s %s' % (k, v) for k, v in args_extr_dict.items()])
+    cmd_extr += " preprocessed/*.mrc"
 
-    print("Running command:\n{}".format(cmd))
-    proc = subprocess.Popen(cmd, shell=True)
+    # Topaz convert
+    cmd_conv = TOPAZ_CONVERT
+    cmd_conv += " -t 0 -o output/coords.star output/coords.txt"
+
+    # Topaz split
+    cmd_split = TOPAZ_SPLIT
+    cmd_split += " --output output output/coords.star"
+
+    print("Running commands:")
+    allCmds = [cmd, cmd_prep, cmd_extr, cmd_conv, cmd_split]
+    for i in allCmds:
+        print(i)
+
+    proc = subprocess.Popen(" && ".join(allCmds), shell=True)
     proc.communicate()
 
     if proc.returncode:
@@ -135,26 +167,6 @@ def run_job(project_dir, args):
 
     # clean preprocessed dir
     shutil.rmtree("preprocessed")
-
-    # Launching topaz convert
-    cmd = "%s && %s " % (CONDA_ENV, TOPAZ_CONVERT)
-    cmd += " -t 0 -o output/coords.star output/coords.txt"
-    print("Running command:\n{}".format(cmd))
-    proc = subprocess.Popen(cmd, shell=True)
-    proc.communicate()
-
-    if proc.returncode:
-        raise Exception("Command failed with return code %d" % proc.returncode)
-
-    # Launching topaz split
-    cmd = "%s && %s " % (CONDA_ENV, TOPAZ_SPLIT)
-    cmd += " --output output output/coords.star"
-    print("Running command:\n{}".format(cmd))
-    proc = subprocess.Popen(cmd, shell=True)
-    proc.communicate()
-
-    if proc.returncode:
-        raise Exception("Command failed with return code %d" % proc.returncode)
 
     # Move output star files for Relion to use
     with open(DONE_MICS, "a+") as f:
@@ -193,7 +205,7 @@ def run_job(project_dir, args):
         # from relion_it.py script
         # Authors: Sjors H.W. Scheres, Takanori Nakane & Colin M. Palmer
         boxSizeSmall = None
-        for box in (32, 48, 64, 96, 128, 160, 192, 256, 288, 300, 320,
+        for box in (48, 64, 96, 128, 160, 192, 256, 288, 300, 320,
                     360, 384, 400, 420, 450, 480, 512, 640, 768,
                     896, 1024):
             # Don't go larger than the original box
@@ -207,7 +219,7 @@ def run_job(project_dir, args):
                 boxSizeSmall = box
                 break
 
-        print("\nEstimated parameters:\n\tDiameter (A): %d\n\tBox size (px): %d\n"
+        print("\nSuggested parameters:\n\tDiameter (A): %d\n\tBox size (px): %d\n"
               "\tBox size binned (px): %d" % (diam, boxSize, boxSizeSmall))
 
         # output all params into a star file

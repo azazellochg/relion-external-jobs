@@ -1,5 +1,29 @@
 #!/usr/bin/env python3
-
+# **************************************************************************
+# *
+# * Authors:     Grigory Sharov (gsharov@mrc-lmb.cam.ac.uk) [1]
+# *
+# * [1] MRC Laboratory of Molecular Biology, MRC-LMB
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 3 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'gsharov@mrc-lmb.cam.ac.uk'
+# *
+# **************************************************************************
 """ Based on https://github.com/DiamondLightSource/python-relion-yolo-it by
 Sjors H.W. Scheres, Takanori Nakane, Colin M. Palmer, Donovan Webb"""
 
@@ -17,7 +41,7 @@ from emtable import Table  # requires pip install emtable
 RELION_JOB_FAILURE_FILENAME = "RELION_JOB_EXIT_FAILURE"
 RELION_JOB_SUCCESS_FILENAME = "RELION_JOB_EXIT_SUCCESS"
 DONE_MICS = "done_mics.txt"
-CONDA_ENV = ". /home/gsharov/rc/conda.rc && conda activate cryolo-1.7.5"
+CONDA_ENV = ". /home/gsharov/rc/conda.rc && conda activate cryolo-1.7.6"
 CRYOLO_PREDICT = "cryolo_predict.py"
 CRYOLO_GEN_MODEL = "/home/gsharov/soft/cryolo/gmodel_phosnet_202005_N63_c17.h5"
 CRYOLO_JANNI_MODEL = "/home/gsharov/soft/cryolo/gmodel_janni_20190703.h5"
