@@ -134,7 +134,7 @@ def run_job(project_dir, args):
 def main():
     """Change to the job working directory, then call run_job()"""
     help = """
-External job for calling cryoassess within Relion 3.1.0. Run it in the main Relion project directory, e.g.:
+External job for calling cryoassess within Relion 3.1. Run it in the Relion project directory, e.g.:
     external_job_cryoassess.py --o External/cryoassess_bestclasses2d --in_parts Class2D/job004/run_it025_data.star
 """
     parser = argparse.ArgumentParser(usage=help)

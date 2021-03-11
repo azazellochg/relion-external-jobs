@@ -51,11 +51,20 @@ def run_job(project_dir, args):
     start = time.time()
     in_parts = args.in_parts
     job_dir = args.out_dir
-    box_size = args.box_size
     model = args.model or CRYOLO_GEN_MODEL
     gpus = args.gpu
 
     getPath = lambda *arglist: os.path.join(project_dir, *arglist)
+
+    # Create folder structure for cryolo
+    os.mkdir(IMG_FOLDER)
+    os.mkdir(ANNOT_FOLDER)
+
+    # Reading the box size from relion
+    optics = Table(fileName=getPath(in_parts), tableName='optics')[0]
+    box_bin = int(optics.rlnImageSize)
+    box_size = float(optics.rlnImagePixelSize) // float(optics.rlnMicrographOriginalPixelSize) * box_bin
+    print("Using unbinned box size of %d px" % box_size)
 
     # Making a cryolo config file
     json_dict = {
@@ -98,11 +107,7 @@ def run_job(project_dir, args):
     with open("config.json", "w") as json_file:
         json.dump(json_dict, json_file, indent=4)
 
-    # Create folder structure for cryolo
-    os.mkdir(IMG_FOLDER)
-    os.mkdir(ANNOT_FOLDER)
-
-    # Reading the particles star file from relion
+    # Reading the particles from relion
     parttable = Table(fileName=getPath(in_parts), tableName='particles')
     mics_dict = {}
 
@@ -169,13 +174,12 @@ def run_job(project_dir, args):
 def main():
     """Change to the job working directory, then call run_job()"""
     help = """
-External job for calling cryolo fine-tune training within Relion 3.1.0. Run it in the main Relion project directory, e.g.:
-    external_job_cryolo_train.py --o External/cryolo_training --in_parts Select/job004/particles.star --box_size 128
+External job for calling cryolo fine-tune training within Relion 3.1. Run it in the Relion project directory, e.g.:
+    external_job_cryolo_train.py --o External/cryolo_training --in_parts Select/job004/particles.star
 """
     parser = argparse.ArgumentParser(usage=help)
     parser.add_argument("--in_parts", help="Input particles STAR file")
     parser.add_argument("--o", dest="out_dir", help="Output directory name")
-    parser.add_argument("--box_size", help="Box size (px)", type=int)
     parser.add_argument("--model", help="Cryolo training model (if not specified general is used)")
     parser.add_argument("--gpu", help='GPUs to use (e.g. "0 1 2 3")', default="0")
     parser.add_argument("--j", dest="threads", help="Not used here. required by relion")
@@ -183,8 +187,8 @@ External job for calling cryolo fine-tune training within Relion 3.1.0. Run it i
 
     args = parser.parse_args()
 
-    if args.in_parts is None or args.out_dir is None or args.box_size is None:
-        print("Error: --in_parts,  --o and --box_size are required params!")
+    if args.in_parts is None or args.out_dir is None:
+        print("Error: --in_parts and --o are required params!")
         exit(1)
 
     if not args.in_parts.endswith(".star"):
@@ -209,4 +213,3 @@ External job for calling cryolo fine-tune training within Relion 3.1.0. Run it i
 
 if __name__ == "__main__":
     main()
-

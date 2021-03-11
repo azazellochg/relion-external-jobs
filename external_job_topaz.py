@@ -281,8 +281,8 @@ sigma_contrast      3
 def main():
     """Change to the job working directory, then call run_job()"""
     help = """
-External job for calling topaz within Relion 3.1.0. Run it in the main Relion project directory, e.g.:
-    external_job_topaz.py --o External/topaz_picking --in_mics CtfFind/job004/micrographs_ctf.star --diam 120 --threshold 0 --gpu 0
+External job for calling topaz within Relion 3.1. Run it in the Relion project directory, e.g.:
+    external_job_topaz.py --o External/topaz_picking --in_mics CtfFind/job004/micrographs_ctf.star --diam 120
 """
     parser = argparse.ArgumentParser(usage=help)
     parser.add_argument("--in_mics", help="Input micrographs STAR file")
