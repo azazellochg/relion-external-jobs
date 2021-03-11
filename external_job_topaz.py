@@ -45,16 +45,9 @@ def run_job(project_dir, args):
     angpix = float(optics[0].rlnMicrographPixelSize)
     mictable = Table(fileName=getPath(in_mics), tableName='micrographs')
 
-    # calculate downscale factor to get to 4-8 A/px
-    for scale in range(2, 20):
-        angpix_bin = angpix * scale
-        if diam < 300 and (4.0 <= angpix_bin <= 6.0 or angpix > 6.0):
-            break
-        elif diam >= 300 and (6.0 <= angpix_bin <= 8.0 or angpix > 8.0):
-            break
-
-    print("Using downscale factor %d to get %0.2f A/pix for %d A particle" % (
-        scale, angpix_bin, diam))
+    # calculate downscale factor, resnet8 window is 71px
+    scale = (2 * diam / angpix / 71)
+    print("Using downscale factor %d for %d A particle" % (scale, diam))
 
     # Arranging files for topaz: making symlinks for mics
     done_mics = []
@@ -116,7 +109,7 @@ def run_job(project_dir, args):
 
     # Launching topaz extract
     args_dict = {
-        '--radius': int(diam / angpix_bin // 2),
+        '--radius': int(diam / (2 * angpix * scale),
         '--up-scale': scale,
         '--threshold': thresh,
         '--output': 'output/coords.txt',
