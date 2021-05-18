@@ -71,7 +71,7 @@ def run_job(project_dir, args):
     mictable = Table(fileName=getPath(in_mics), tableName='micrographs')
 
     # calculate downscale factor, resnet8 window is 71px
-    scale = int(2 * diam / angpix / 71)
+    scale = max(4, int(2 * diam / angpix / 71))
     print("Using downscale factor %d for %d A particle" % (scale, diam))
 
     # Arranging files for topaz: making symlinks for mics
