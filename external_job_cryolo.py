@@ -41,7 +41,7 @@ from emtable import Table  # requires pip install emtable
 RELION_JOB_FAILURE_FILENAME = "RELION_JOB_EXIT_FAILURE"
 RELION_JOB_SUCCESS_FILENAME = "RELION_JOB_EXIT_SUCCESS"
 DONE_MICS = "done_mics.txt"
-CONDA_ENV = ". /home/gsharov/rc/conda.rc && conda activate cryolo-1.7.6"
+CONDA_ENV = ". /home/gsharov/rc/conda.rc && conda activate cryolo-1.7.7"
 CRYOLO_PREDICT = "cryolo_predict.py"
 CRYOLO_GEN_MODEL = "/home/gsharov/soft/cryolo/gmodel_phosnet_202005_N63_c17.h5"
 CRYOLO_JANNI_MODEL = "/home/gsharov/soft/cryolo/gmodel_janni_20190703.h5"
@@ -103,7 +103,7 @@ def run_job(project_dir, args):
     mic_ext = os.path.splitext(mic_fns[0])[1]
     input_job = "/".join(mic_fns[0].split("/")[:2])
     keys = ["/".join(i.split("/")[2:]) for i in mic_fns]  # remove JobType/jobXXX
-    values = [os.path.splitext(i)[0] + "_cryolo.star" for i in keys]  # _cryolo.star
+    values = [os.path.splitext(i)[0] + "_autopick.star" for i in keys]  # _cryolo.star
     mic_dict = {k: v for k, v in zip(keys, values) if k not in done_mics}
 
     for mic in mic_dict:
@@ -154,7 +154,8 @@ def run_job(project_dir, args):
         raise Exception("Command failed with return code %d" % proc.returncode)
 
     # Moving output star files for Relion to use
-    with open(DONE_MICS, "a+") as f:
+    table_coords = Table(columns=['rlnMicrographName', 'rlnMicrographCoordinates'])
+    with open(DONE_MICS, "a+") as f, open("autopick.star", "w") as mics_star:
         for mic in mic_dict:
             f.write("%s\n" % mic)
             mic_base = os.path.basename(mic)
@@ -164,18 +165,29 @@ def run_job(project_dir, args):
             coord_relion = mic_dict[mic]
             if os.path.exists(coord_cryolo):
                 os.rename(coord_cryolo, getPath(job_dir, coord_relion))
+                table_coords.addRow(os.path.join(input_job, mic), os.path.join(job_dir, coord_relion))
                 if DEBUG:
                     print("Moved %s to %s" % (coord_cryolo, getPath(job_dir, coord_relion)))
+        table_coords.writeStar(mics_star, tableName='coordinate_files')
 
-    # Required output mics star file
-    with open("coords_suffix_cryolo.star", "w") as mics_star:
-        mics_star.write(in_mics)
+    # Required output job_pipeline.star file
+    pipeline_fn = getPath(job_dir, "job_pipeline.star")
+    table_gen = Table(fileName=pipeline_fn, tableName='pipeline_general')
+    table_proc = Table(fileName=pipeline_fn, tableName='pipeline_processes')
+    table_nodes = Table(columns=['rlnPipeLineNodeName', 'rlnPipeLineNodeTypeLabel'])
+    table_input = Table(fileName=pipeline_fn, tableName='pipeline_input_edges')
+    table_output = Table(columns=['rlnPipeLineEdgeProcess', 'rlnPipeLineEdgeToNode'])
 
-    # Required output nodes star file
-    nodes = Table(columns=['rlnPipeLineNodeName', 'rlnPipeLineNodeType'])
-    nodes.addRow(os.path.join(job_dir, "coords_suffix_cryolo.star"), "2")
-    with open("RELION_OUTPUT_NODES.star", "w") as nodes_star:
-        nodes.writeStar(nodes_star, tableName="output_nodes")
+    table_nodes.addRow(in_mics, "relion.MicrographStar")
+    table_nodes.addRow(os.path.join(job_dir, "autopick.star"), "relion.CoordinateStar")
+    table_output.addRow(job_dir, os.path.join(job_dir, "autopick.star"))
+
+    with open(pipeline_fn, "w") as f:
+        table_gen.writeStar(f, tableName="pipeline_general", singleRow=True)
+        table_proc.writeStar(f, tableName="pipeline_processes")
+        table_nodes.writeStar(f, tableName="pipeline_nodes")
+        table_input.writeStar(f, tableName="pipeline_input_edges")
+        table_output.writeStar(f, tableName="pipeline_output_edges")
 
     outputFn = getPath(job_dir, "output_for_relion.star")
     if not os.path.exists(outputFn):
@@ -200,7 +212,7 @@ def run_job(project_dir, args):
         # from relion_it.py script
         # Authors: Sjors H.W. Scheres, Takanori Nakane & Colin M. Palmer
         boxSizeSmall = None
-        for box in (32, 48, 64, 96, 128, 160, 192, 256, 288, 300, 320,
+        for box in (48, 64, 96, 128, 160, 192, 256, 288, 300, 320,
                     360, 384, 400, 420, 450, 480, 512, 640, 768,
                     896, 1024):
             # Don't go larger than the original box
@@ -280,7 +292,7 @@ sigma_contrast      3
 def main():
     """Change to the job working directory, then call run_job()"""
     help = """
-External job for calling cryolo within Relion 3.1. Run it in the Relion project directory, e.g.:
+External job for calling cryolo within Relion 4.0. Run it in the Relion project directory, e.g.:
     external_job_cryolo.py --o External/cryolo_picking --in_mics CtfFind/job004/micrographs_ctf.star
 """
     parser = argparse.ArgumentParser(usage=help)
