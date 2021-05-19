@@ -57,7 +57,7 @@ def run_job(project_dir, args):
     distance = 0
     model = args.model
     gpus = args.gpu
-    threads = args.threads
+    threads = args.threads  # not used
 
     getPath = lambda *arglist: os.path.join(project_dir, *arglist)
 
@@ -103,7 +103,7 @@ def run_job(project_dir, args):
     mic_ext = os.path.splitext(mic_fns[0])[1]
     input_job = "/".join(mic_fns[0].split("/")[:2])
     keys = ["/".join(i.split("/")[2:]) for i in mic_fns]  # remove JobType/jobXXX
-    values = [os.path.splitext(i)[0] + "_autopick.star" for i in keys]  # _cryolo.star
+    values = [os.path.splitext(i)[0] + "_autopick.star" for i in keys]
     mic_dict = {k: v for k, v in zip(keys, values) if k not in done_mics}
 
     for mic in mic_dict:
@@ -174,11 +174,10 @@ def run_job(project_dir, args):
     pipeline_fn = getPath(job_dir, "job_pipeline.star")
     table_gen = Table(fileName=pipeline_fn, tableName='pipeline_general')
     table_proc = Table(fileName=pipeline_fn, tableName='pipeline_processes')
-    table_nodes = Table(columns=['rlnPipeLineNodeName', 'rlnPipeLineNodeTypeLabel'])
+    table_nodes = Table(fileName=pipeline_fn, tableName='pipeline_nodes')
     table_input = Table(fileName=pipeline_fn, tableName='pipeline_input_edges')
     table_output = Table(columns=['rlnPipeLineEdgeProcess', 'rlnPipeLineEdgeToNode'])
 
-    table_nodes.addRow(in_mics, "relion.MicrographStar")
     table_nodes.addRow(os.path.join(job_dir, "autopick.star"), "relion.CoordinateStar")
     table_output.addRow(job_dir, os.path.join(job_dir, "autopick.star"))
 
