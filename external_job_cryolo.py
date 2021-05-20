@@ -56,8 +56,13 @@ def run_job(project_dir, args):
     box_size = args.box_size
     distance = 0
     model = args.model
+    filament = args.filament
+    if filament:
+        fil_width = args.filament_width
+        box_dist = args.box_distance
+        min_boxes = args.minimum_number_boxes
     gpus = args.gpu
-    threads = args.threads  # not used
+    threads = args.threads
 
     getPath = lambda *arglist: os.path.join(project_dir, *arglist)
 
@@ -79,7 +84,8 @@ def run_job(project_dir, args):
 
     if box_size:  # is not 0
         json_dict["model"]["anchors"] = [int(box_size), int(box_size)]
-        distance = int(box_size / 2)  # use half the box_size
+        if not filament:
+            distance = int(box_size / 2)  # use half the box_size
 
     if DEBUG:
         print("Using following config.json: ", json_dict)
@@ -101,8 +107,12 @@ def run_job(project_dir, args):
 
     mic_fns = mictable.getColumnValues("rlnMicrographName")
     mic_ext = os.path.splitext(mic_fns[0])[1]
-    input_job = "/".join(mic_fns[0].split("/")[:2])
-    keys = ["/".join(i.split("/")[2:]) for i in mic_fns]  # remove JobType/jobXXX
+    if "job" in mic_fns[0].split("/")[1]:  # remove JobType/jobXXX
+        input_job = "/".join(mic_fns[0].split("/")[:2])
+        keys = ["/".join(i.split("/")[2:]) for i in mic_fns]
+    else:
+        input_job = ""
+        keys = mic_fns
     values = [os.path.splitext(i)[0] + "_autopick.star" for i in keys]
     mic_dict = {k: v for k, v in zip(keys, values) if k not in done_mics}
 
@@ -137,8 +147,17 @@ def run_job(project_dir, args):
         '--threshold': thresh,
         '--distance': distance,
         '--cleanup': "",
-        '-nc': -1  # threads
+        '--num_cpu': -1 if not threads else threads
     }
+
+    if filament:
+        args_dict.update({
+            '--filament': "",
+            '--filament_width': fil_width,
+            '--box_distance': box_dist,
+            '--minimum_number_boxes': min_boxes
+        })
+
     cmd = "%s && %s " % (CONDA_ENV, CRYOLO_PREDICT)
     cmd += " ".join(['%s %s' % (k, v) for k, v in args_dict.items()])
     cmd += " --input "
@@ -172,13 +191,17 @@ def run_job(project_dir, args):
 
     # Required output job_pipeline.star file
     pipeline_fn = getPath(job_dir, "job_pipeline.star")
-    table_gen = Table(fileName=pipeline_fn, tableName='pipeline_general')
-    table_proc = Table(fileName=pipeline_fn, tableName='pipeline_processes')
-    table_nodes = Table(fileName=pipeline_fn, tableName='pipeline_nodes')
-    table_input = Table(fileName=pipeline_fn, tableName='pipeline_input_edges')
-    table_output = Table(columns=['rlnPipeLineEdgeProcess', 'rlnPipeLineEdgeToNode'])
-
+    table_gen = Table(columns=['rlnPipeLineJobCounter'])
+    table_gen.addRow(2)
+    table_proc = Table(columns=['rlnPipeLineProcessName', 'rlnPipeLineProcessAlias',
+                                'rlnPipeLineProcessTypeLabel', 'rlnPipeLineProcessStatusLabel'])
+    table_proc.addRow(job_dir, 'None', 'External', 'Running')
+    table_nodes = Table(columns=['rlnPipeLineNodeName', 'rlnPipeLineNodeTypeLabel'])
+    table_nodes.addRow(in_mics, "relion.MicrographStar")
     table_nodes.addRow(os.path.join(job_dir, "autopick.star"), "relion.CoordinateStar")
+    table_input = Table(columns=['rlnPipeLineEdgeFromNode', 'rlnPipeLineEdgeProcess'])
+    table_input.addRow(in_mics, job_dir)
+    table_output = Table(columns=['rlnPipeLineEdgeProcess', 'rlnPipeLineEdgeToNode'])
     table_output.addRow(job_dir, os.path.join(job_dir, "autopick.star"))
 
     with open(pipeline_fn, "w") as f:
@@ -297,12 +320,16 @@ External job for calling cryolo within Relion 4.0. Run it in the Relion project 
     parser = argparse.ArgumentParser(usage=help)
     parser.add_argument("--in_mics", help="Input micrographs STAR file")
     parser.add_argument("--o", dest="out_dir", help="Output directory name")
-    parser.add_argument("--j", dest="threads", help="Number of CPU threads (default = 1)", type=int, default=1)
+    parser.add_argument("--j", dest="threads", help="Number of CPU threads (default 0 = all)", type=int, default=0)
     parser.add_argument("--box_size", help="Box size (default = 0 means it's estimated)", type=int, default=0)
     parser.add_argument("--threshold", help="Threshold for picking (default = 0.3)", type=float, default=0.3)
-    parser.add_argument("--model", help="Cryolo training model (if not specified general is used)", default="None")
-    parser.add_argument("--gpu", help='GPUs to use (e.g. "0 1 2 3")', default="0")
-    parser.add_argument("--pipeline_control", help="Not used here. Required by relion")
+    parser.add_argument("--model", help="Cryolo training model (if not specified general model is used)", default="None")
+    parser.add_argument("--filament", help='Enable filament mode', default=False, action='store_true')
+    parser.add_argument("--fw", dest="filament_width", help='[FILAMENT MODE] Filament width (in pixel)', type=int, default=None)
+    parser.add_argument("--bd", dest="box_distance", help='[FILAMENT MODE] Distance in pixel between two boxes', type=int, default=None)
+    parser.add_argument("--mn", dest="minimum_number_boxes", help='[FILAMENT MODE] Minimum number of boxes per filament', type=int, default=None)
+    parser.add_argument("--gpu", help='GPUs to use (e.g. "0 1 2 3", default = "0")', default="0")
+    parser.add_argument("--pipeline_control", help="Not used here. Required by Relion")
 
     args = parser.parse_args()
 
@@ -311,8 +338,13 @@ External job for calling cryolo within Relion 4.0. Run it in the Relion project 
         exit(1)
 
     if not args.in_mics.endswith(".star"):
-        print("Error: --in_mics must point to a micrographs star file")
+        print("Error: --in_mics must point to a micrographs star file!")
         exit(1)
+
+    if args.filament:
+        if None in [args.filament_width, args.box_distance, args.minimum_number_boxes]:
+            print("Error: --fw, --bd, --mn are required in filament mode!")
+            exit(1)
 
     project_dir = os.getcwd()
     os.makedirs(args.out_dir, exist_ok=True)
