@@ -44,6 +44,7 @@ DONE_MICS = "done_mics.txt"
 CONDA_ENV = ". /home/gsharov/rc/conda.rc && conda activate cryolo-1.7.7"
 CRYOLO_PREDICT = "cryolo_predict.py"
 CRYOLO_GEN_MODEL = "/home/gsharov/soft/cryolo/gmodel_phosnet_202005_N63_c17.h5"
+CRYOLO_GEN_JANNI_MODEL = "/home/gsharov/soft/cryolo/gmodel_phosnet_202005_nn_N63_c17.h5"
 CRYOLO_JANNI_MODEL = "/home/gsharov/soft/cryolo/gmodel_janni_20190703.h5"
 DEBUG = 0
 
@@ -61,13 +62,14 @@ def run_job(project_dir, args):
         fil_width = args.filament_width
         box_dist = args.box_distance
         min_boxes = args.minimum_number_boxes
+    denoise = args.denoise
     gpus = args.gpu
     threads = args.threads
 
     getPath = lambda *arglist: os.path.join(project_dir, *arglist)
 
     if model == "None":
-        model = CRYOLO_GEN_MODEL
+        model = CRYOLO_GEN_MODEL if not denoise else CRYOLO_GEN_JANNI_MODEL
     else:
         model = getPath(model)
 
@@ -86,11 +88,18 @@ def run_job(project_dir, args):
         json_dict["model"]["anchors"] = [int(box_size), int(box_size)]
         if not filament:
             distance = int(box_size / 2)  # use half the box_size
+    if denoise:
+        json_dict["model"]["filter"] = [
+            CRYOLO_JANNI_MODEL,
+            24,
+            3,
+            "filtered_tmp/"
+        ]
 
     if DEBUG:
         print("Using following config.json: ", json_dict)
 
-    with open("config.json", "w") as json_file:
+    with open("config_cryolo.json", "w") as json_file:
         json.dump(json_dict, json_file, indent=4)
 
     # Reading the micrographs star file from relion
@@ -140,14 +149,14 @@ def run_job(project_dir, args):
 
     # Launching cryolo
     args_dict = {
-        '--conf': "config.json",
+        '--conf': "config_cryolo.json",
         '--output': 'output',
         '--weights': model,
         '--gpu': "%s" % gpus.replace('"', ''),
         '--threshold': thresh,
         '--distance': distance,
         '--cleanup': "",
-        '--num_cpu': -1 if not threads else threads
+        '--num_cpu': -1 if threads == 1 else threads
     }
 
     if filament:
@@ -220,13 +229,14 @@ def run_job(project_dir, args):
             for line in f:
                 if line.startswith("MEAN,"):
                     estim_sizepx = int(line.split(",")[-1])
-        print("\nFound estimated box size %d px from %s" % (estim_sizepx, f.name))
+                    break
+        print("\ncrYOLO estimated box size %d px" % estim_sizepx)
     
         # calculate diameter, original (boxSize) and downsampled (boxSizeSmall) box
         optics = Table(fileName=getPath(in_mics), tableName='optics')
         angpix = float(optics[0].rlnMicrographPixelSize)
         # use + 20% for diameter
-        diam = int(estim_sizepx * angpix * 1.2)
+        diam = math.ceil(estim_sizepx * angpix * 1.2)
         # use +30% for box size, make it even
         boxSize = 1.3 * estim_sizepx
         boxSize = math.ceil(boxSize / 2.) * 2
@@ -248,7 +258,7 @@ def run_job(project_dir, args):
                 boxSizeSmall = box
                 break
     
-        print("\nEstimated parameters:\n\tDiameter (A): %d\n\tBox size (px): %d\n"
+        print("\nSuggested parameters:\n\tDiameter (A): %d\n\tBox size (px): %d\n"
               "\tBox size binned (px): %d" % (diam, boxSize, boxSizeSmall))
     
         # output all params into a star file
@@ -320,7 +330,7 @@ External job for calling cryolo within Relion 4.0. Run it in the Relion project 
     parser = argparse.ArgumentParser(usage=help)
     parser.add_argument("--in_mics", help="Input micrographs STAR file")
     parser.add_argument("--o", dest="out_dir", help="Output directory name")
-    parser.add_argument("--j", dest="threads", help="Number of CPU threads (default 0 = all)", type=int, default=0)
+    parser.add_argument("--j", dest="threads", help="Number of CPU threads (default = all)", type=int, default=1)
     parser.add_argument("--box_size", help="Box size (default = 0 means it's estimated)", type=int, default=0)
     parser.add_argument("--threshold", help="Threshold for picking (default = 0.3)", type=float, default=0.3)
     parser.add_argument("--model", help="Cryolo training model (if not specified general model is used)", default="None")
@@ -328,6 +338,7 @@ External job for calling cryolo within Relion 4.0. Run it in the Relion project 
     parser.add_argument("--fw", dest="filament_width", help='[FILAMENT MODE] Filament width (in pixel)', type=int, default=None)
     parser.add_argument("--bd", dest="box_distance", help='[FILAMENT MODE] Distance in pixel between two boxes', type=int, default=None)
     parser.add_argument("--mn", dest="minimum_number_boxes", help='[FILAMENT MODE] Minimum number of boxes per filament', type=int, default=None)
+    parser.add_argument("--denoise", help="Denoise with JANNI instead of lowpass filtering", default=False, action='store_true')
     parser.add_argument("--gpu", help='GPUs to use (e.g. "0 1 2 3", default = "0")', default="0")
     parser.add_argument("--pipeline_control", help="Not used here. Required by Relion")
 
