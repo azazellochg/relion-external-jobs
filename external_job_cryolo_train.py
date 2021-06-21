@@ -34,10 +34,9 @@ import time
 import subprocess
 from emtable import Table  # requires pip install emtable
 
-
 RELION_JOB_FAILURE_FILENAME = "RELION_JOB_EXIT_FAILURE"
 RELION_JOB_SUCCESS_FILENAME = "RELION_JOB_EXIT_SUCCESS"
-CONDA_ENV = ". /home/gsharov/rc/conda.rc && conda activate cryolo-1.7.5"
+CONDA_ENV = ". /home/gsharov/rc/conda.rc && conda activate cryolo-1.7.7"
 CRYOLO_TRAIN = "cryolo_train.py"
 CRYOLO_GEN_MODEL = "/home/gsharov/soft/cryolo/gmodel_phosnet_202005_N63_c17.h5"
 CRYOLO_JANNI_MODEL = "/home/gsharov/soft/cryolo/gmodel_janni_20190703.h5"
@@ -137,11 +136,11 @@ def run_job(project_dir, args):
                         (coords[0], coords[1], box_size, box_size))
         if DEBUG:
             print("Created box file: %s" % box)
-    
+
     # Launching cryolo
     args_dict = {
         '--conf': "config.json",
-        '--gpu': gpus,
+        '--gpu': gpus.replace(',', ' '),
         '--warmup': 0,
         '--fine_tune': "",
         '--cleanup': ""
@@ -168,7 +167,7 @@ def run_job(project_dir, args):
 
     end = time.time()
     diff = end - start
-    print("Job duration = %dh %dmin %dsec \n" % (diff//3600, diff//60 % 60, diff % 60))
+    print("Job duration = %dh %dmin %dsec \n" % (diff // 3600, diff // 60 % 60, diff % 60))
 
 
 def main():
@@ -181,7 +180,7 @@ External job for calling cryolo fine-tune training within Relion 3.1. Run it in 
     parser.add_argument("--in_parts", help="Input particles STAR file")
     parser.add_argument("--o", dest="out_dir", help="Output directory name")
     parser.add_argument("--model", help="Cryolo training model (if not specified general is used)")
-    parser.add_argument("--gpu", help='GPUs to use (e.g. "0 1 2 3")', default="0")
+    parser.add_argument("--gpu", help='GPUs to use (e.g. "0,1,2,3")', default="0")
     parser.add_argument("--j", dest="threads", help="Not used here. required by relion")
     parser.add_argument("--pipeline_control", help="Not used here. Required by relion")
 
