@@ -152,7 +152,7 @@ def run_job(project_dir, args):
         '--conf': "config_cryolo.json",
         '--output': 'output',
         '--weights': model,
-        '--gpu': "%s" % gpus.replace('"', ''),
+        '--gpu': gpus.replace(',', ' '),
         '--threshold': thresh,
         '--distance': distance,
         '--cleanup': "",
@@ -204,10 +204,10 @@ def run_job(project_dir, args):
     table_gen.addRow(2)
     table_proc = Table(columns=['rlnPipeLineProcessName', 'rlnPipeLineProcessAlias',
                                 'rlnPipeLineProcessTypeLabel', 'rlnPipeLineProcessStatusLabel'])
-    table_proc.addRow(job_dir, 'None', 'relion.external', 'Running')
+    table_proc.addRow(job_dir, 'None', 'External', 'Running')
     table_nodes = Table(columns=['rlnPipeLineNodeName', 'rlnPipeLineNodeTypeLabel'])
-    table_nodes.addRow(in_mics, "MicrographsData.star.relion")
-    table_nodes.addRow(os.path.join(job_dir, "autopick.star"), "MicrographsCoords.star.relion.autopick")
+    table_nodes.addRow(in_mics, "relion.MicrographStar")
+    table_nodes.addRow(os.path.join(job_dir, "autopick.star"), "relion.CoordinateStar")
     table_input = Table(columns=['rlnPipeLineEdgeFromNode', 'rlnPipeLineEdgeProcess'])
     table_input.addRow(in_mics, job_dir)
     table_output = Table(columns=['rlnPipeLineEdgeProcess', 'rlnPipeLineEdgeToNode'])
@@ -231,7 +231,7 @@ def run_job(project_dir, args):
                     estim_sizepx = int(line.split(",")[-1])
                     break
         print("\ncrYOLO estimated box size %d px" % estim_sizepx)
-    
+
         # calculate diameter, original (boxSize) and downsampled (boxSizeSmall) box
         optics = Table(fileName=getPath(in_mics), tableName='optics')
         angpix = float(optics[0].rlnMicrographPixelSize)
@@ -240,7 +240,7 @@ def run_job(project_dir, args):
         # use +30% for box size, make it even
         boxSize = 1.3 * estim_sizepx
         boxSize = math.ceil(boxSize / 2.) * 2
-    
+
         # from relion_it.py script
         # Authors: Sjors H.W. Scheres, Takanori Nakane & Colin M. Palmer
         boxSizeSmall = None
@@ -257,10 +257,10 @@ def run_job(project_dir, args):
             if small_box_angpix < 4.25:
                 boxSizeSmall = box
                 break
-    
+
         print("\nSuggested parameters:\n\tDiameter (A): %d\n\tBox size (px): %d\n"
               "\tBox size binned (px): %d" % (diam, boxSize, boxSizeSmall))
-    
+
         # output all params into a star file
         tableCryolo = Table(columns=['rlnParticleDiameter',
                                      'rlnOriginalImageSize',
@@ -272,22 +272,15 @@ def run_job(project_dir, args):
         # create .gui_manualpickjob.star for easy display
         starString = """
 # version 30001
-
 data_job
-
-_rlnJobType                             relion.manualpick
+_rlnJobType                             3
 _rlnJobIsContinue                       0
-_rlnJobIsTomo                           0
-
-
 # version 30001
-
 data_joboptions_values
-
 loop_
 _rlnJobOptionVariable #1
 _rlnJobOptionValue #2
-    angpix         -1
+    angpix         %f
  black_val          0
 blue_value          0
 color_label rlnParticleSelectZScore
@@ -311,7 +304,7 @@ sigma_contrast      3
  white_val          0
 """
         with open(getPath(".gui_manualpickjob.star"), "w") as f:
-            f.write(starString % diam)
+            f.write(starString % (angpix, diam))
 
     # remove output dir
     if os.path.isdir("output"):
@@ -340,7 +333,7 @@ External job for calling cryolo within Relion 4.0. Run it in the Relion project 
     parser.add_argument("--bd", dest="box_distance", help='[FILAMENT MODE] Distance in pixel between two boxes', type=int, default=None)
     parser.add_argument("--mn", dest="minimum_number_boxes", help='[FILAMENT MODE] Minimum number of boxes per filament', type=int, default=None)
     parser.add_argument("--denoise", help="Denoise with JANNI instead of lowpass filtering", default=False, action='store_true')
-    parser.add_argument("--gpu", help='GPUs to use (e.g. "0 1 2 3", default = "0")', default="0")
+    parser.add_argument("--gpu", help='GPUs to use (e.g. "0,1,2,3", default = "0")', default="0")
     parser.add_argument("--pipeline_control", help="Not used here. Required by Relion")
 
     args = parser.parse_args()
