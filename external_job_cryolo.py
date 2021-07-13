@@ -204,7 +204,7 @@ def run_job(project_dir, args):
     table_gen.addRow(2)
     table_proc = Table(columns=['rlnPipeLineProcessName', 'rlnPipeLineProcessAlias',
                                 'rlnPipeLineProcessTypeLabel', 'rlnPipeLineProcessStatusLabel'])
-    table_proc.addRow(job_dir, 'None', 'External', 'Running')
+    table_proc.addRow(job_dir, 'None', 'relion.external', 'Running')
     table_nodes = Table(columns=['rlnPipeLineNodeName', 'rlnPipeLineNodeTypeLabel'])
     table_nodes.addRow(in_mics, "relion.MicrographStar")
     table_nodes.addRow(os.path.join(job_dir, "autopick.star"), "relion.CoordinateStar")
@@ -284,7 +284,6 @@ _rlnJobOptionValue #2
  black_val          0
 blue_value          0
 color_label rlnParticleSelectZScore
-  ctfscale          1
   diameter         %d
   do_color         No
   do_queue         No
