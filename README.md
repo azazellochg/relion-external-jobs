@@ -1,5 +1,5 @@
 # relion-external-jobs
-Python scripts for Relion "External job" type
+Python scripts for Relion 3.1 "External job" type. For Relion 4 see the separate git branch.
 
 Before running the scripts you will need to 
 
