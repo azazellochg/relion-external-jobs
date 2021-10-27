@@ -167,7 +167,7 @@ def run_job(project_dir, args):
                                 'rlnPipeLineProcessTypeLabel', 'rlnPipeLineProcessStatusLabel'])
     table_proc.addRow(job_dir, 'None', 'relion.external', 'Running')
     table_nodes = Table(columns=['rlnPipeLineNodeName', 'rlnPipeLineNodeTypeLabel'])
-    table_nodes.addRow(in_parts, "relion.ParticleStar")
+    table_nodes.addRow(in_parts, "ParticlesData.star.relion")
     table_input = Table(columns=['rlnPipeLineEdgeFromNode', 'rlnPipeLineEdgeProcess'])
     table_input.addRow(in_parts, job_dir)
 
@@ -193,8 +193,8 @@ External job for calling cryolo fine-tune training within Relion 4.0. Run it in 
     parser.add_argument("--o", dest="out_dir", help="Output directory name")
     parser.add_argument("--model", help="Cryolo training model (if not specified general is used)")
     parser.add_argument("--gpu", help='GPUs to use (e.g. "0,1,2,3")', default="0")
-    parser.add_argument("--j", dest="threads", help="Not used here. required by relion")
-    parser.add_argument("--pipeline_control", help="Not used here. Required by relion")
+    parser.add_argument("--j", dest="threads", help="Not used here. Required by Relion")
+    parser.add_argument("--pipeline_control", help="Not used here. Required by Relion")
 
     args = parser.parse_args()
 
