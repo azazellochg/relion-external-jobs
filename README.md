@@ -31,11 +31,10 @@ Alternatively, from Relion GUI:
 
 From command line run:: 
 ```
-./external_job_cryolo.py --in_mics MotionCorr/job002/corrected_micrographs.star --o picking --model cryolo_model.h5 --box_size 140 --filament --fw 100 --bd 40 --mn 1
+./external_job_cryolo.py --in_mics MotionCorr/job002/corrected_micrographs.star --o picking --model cryolo_model.h5 --box_size 140 --filament --bd 40 --mn 1
 ```
 
 Alternatively, from Relion GUI:
 
 ![image](https://user-images.githubusercontent.com/6952870/139668687-008e171d-055e-456e-af3a-5ac3522cd872.png)
-![image](https://user-images.githubusercontent.com/6952870/139668724-c3fecbc4-8364-401f-b3e3-1e3f880ceb2a.png)
-
+![image](https://user-images.githubusercontent.com/6952870/139843254-a050294a-785f-4f7d-bf89-b4ff252c6308.png)
