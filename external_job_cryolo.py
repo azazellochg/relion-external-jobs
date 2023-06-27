@@ -37,12 +37,13 @@ import math
 from emtable import Table  # run "pip3 install --user emtable" for system python
 
 
-CONDA_ENV = ". /home/gsharov/rc/conda.rc && conda activate cryolo-1.8"
+CONDA_ENV = ". /lmb/home/gsharov/rc/conda.rc && conda activate cryolo-1.9.3"
 CRYOLO_PREDICT = "cryolo_predict.py"
-CRYOLO_GEN_MODEL = "/home/gsharov/soft/cryolo/gmodel_phosnet_202005_N63_c17.h5"
-CRYOLO_GEN_JANNI_MODEL = "/home/gsharov/soft/cryolo/gmodel_phosnet_202005_nn_N63_c17.h5"
-CRYOLO_JANNI_MODEL = "/home/gsharov/soft/cryolo/gmodel_janni_20190703.h5"
-SCRATCH_DIR = "/ssd"  # SSD scratch space for filtered mics, can be None
+CRYOLO_GEN_MODEL = "/public/EM/Scipion/scipion-dev/software/em/cryolo_model-202005_N63_c17/gmodel_phosnet_202005_N63_c17.h5"
+CRYOLO_GEN_JANNI_MODEL = "/public/EM/Scipion/scipion-dev/software/em/cryolo_model-202005_nn_N63_c17/gmodel_phosnet_202005_nn_N63_c17.h5"
+CRYOLO_JANNI_MODEL = "/public/EM/Scipion/scipion-dev/software/em/janni_model-20190703/gmodel_janni_20190703.h5"
+CRYOLO_NEGST_MODEL = "/public/EM/Scipion/scipion-dev/software/em/cryolo_negstain_model-20190226/gmodel_phosnet_negstain_20190226.h5"
+SCRATCH_DIR = os.getenv("SLURM_SCRATCH_DIR")  # SSD scratch space for filtered mics, can be None
 DEBUG = 0
 
 
@@ -297,7 +298,7 @@ sigma_contrast      3
 def main():
     """Change to the job working directory, then call run_job()"""
     help = """
-External job for calling crYOLO 1.8+ within Relion 4.0. Run it in the Relion project directory, e.g.:
+External job for calling crYOLO 1.9.3 within Relion 4. Run it in the Relion project directory, e.g.:
     external_job_cryolo.py --o External/cryolo_picking --in_mics CtfFind/job004/micrographs_ctf.star
 """
     parser = argparse.ArgumentParser(usage=help)
