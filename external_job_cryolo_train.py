@@ -52,6 +52,7 @@ def run_job(project_dir, args):
     job_dir = args.out_dir
     model = args.model or CRYOLO_GEN_MODEL
     gpus = args.gpu
+    nmics = args.n
 
     getPath = lambda *arglist: os.path.join(project_dir, *arglist)
 
@@ -116,19 +117,20 @@ def run_job(project_dir, args):
     except:
         print("Could not read particles table from %s. Stopping" % in_parts)
         return
-    mics_dict = {}
 
-    # Arranging files for cryolo: making symlinks for mics and creating box files
+    # Arranging files for cryolo: making symlinks for mics and creating star files
+    mics_dict = {}
     for row in parttable:
         mic = row.rlnMicrographName
-        xCoord = int(int(row.rlnCoordinateX) - box_size / 2)
-        yCoord = int(int(row.rlnCoordinateY) - box_size / 2)
         if mic in mics_dict:
-            mics_dict[mic].append((xCoord, yCoord))
+            mics_dict[mic].append((row.rlnCoordinateX, row.rlnCoordinateY))
         else:
-            mics_dict[mic] = [(xCoord, yCoord)]
+            mics_dict[mic] = [(row.rlnCoordinateX, row.rlnCoordinateY)]
 
-    for mic in mics_dict:
+    mics_dict = dict(sorted(mics_dict.items(), key=lambda item: -1*len(item[1])))
+    for mic_num, mic in enumerate(mics_dict):
+        if 0 < nmics <= mic_num:
+            break
         micSrc = getPath(mic)
         micDst = getPath(job_dir, IMG_FOLDER, os.path.basename(mic))
         if not os.path.exists(micDst):
@@ -136,14 +138,15 @@ def run_job(project_dir, args):
         if DEBUG:
             print("Link %s --> %s" % (micSrc, micDst))
 
-        box = os.path.splitext(micDst)[0] + ".box"
-        box = box.replace(IMG_FOLDER, ANNOT_FOLDER)
-        with open(box, "w") as f:
-            for coords in mics_dict[mic]:
-                f.write("%s\t%s\t%s\t%s\n" %
-                        (coords[0], coords[1], box_size, box_size))
+        coordFn = os.path.splitext(micDst)[0] + ".star"
+        coordFn = coordFn.replace(IMG_FOLDER, ANNOT_FOLDER)
+        with open(coordFn, "w") as fn:
+            table_coords = Table(columns=['rlnCoordinateX', 'rlnCoordinateY'])
+            for coord in mics_dict[mic]:
+                table_coords.addRow(coord[0], coord[1])
+            table_coords.writeStar(fn, tableName='')
         if DEBUG:
-            print("Created box file: %s" % box)
+            print("Created coord star file: %s" % coordFn)
 
     # Launching cryolo
     args_dict = {
@@ -190,13 +193,14 @@ def main():
     """Change to the job working directory, then call run_job()"""
     help = """
 External job for calling crYOLO fine-tune training within Relion 4.0. Run it in the Relion project directory, e.g.:
-    external_job_cryolo_train.py --o External/cryolo_training --in_parts Select/job004/particles.star
+    external_job_cryolo_train.py --o External/cryolo_training --in_parts Select/job004/particles.star --n 20
 """
     parser = argparse.ArgumentParser(usage=help)
     parser.add_argument("--in_parts", help="Input particles STAR file")
     parser.add_argument("--o", dest="out_dir", help="Output directory name")
     parser.add_argument("--model", help="Cryolo training model (if not specified general is used)")
     parser.add_argument("--gpu", help='GPUs to use (e.g. "0,1,2,3")', default="0")
+    parser.add_argument("--n", help='Select only N most populated micrographs (default=20)', type=int, default=20)
     parser.add_argument("--j", dest="threads", help="Not used here. Required by Relion")
     parser.add_argument("--pipeline_control", help="Not used here. Required by Relion")
 
