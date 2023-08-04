@@ -216,8 +216,8 @@ External job for calling crYOLO fine-tune training within Relion 4.0. Run it in 
 
     project_dir = os.getcwd()
     os.makedirs(args.out_dir, exist_ok=True)
-    RELION_JOB_FAILURE_FILENAME = os.path.join(args.out_dir, "RELION_JOB_EXIT_FAILURE")
-    RELION_JOB_SUCCESS_FILENAME = os.path.join(args.out_dir, "RELION_JOB_EXIT_SUCCESS")
+    RELION_JOB_FAILURE_FILENAME = os.path.join("..", args.out_dir, "RELION_JOB_EXIT_FAILURE")
+    RELION_JOB_SUCCESS_FILENAME = os.path.join("..", args.out_dir, "RELION_JOB_EXIT_SUCCESS")
 
     os.chdir(args.out_dir)
     if os.path.isfile(RELION_JOB_FAILURE_FILENAME):
